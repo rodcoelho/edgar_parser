@@ -7,8 +7,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from bs4 import BeautifulSoup
 
-# from writeout import write_out_to_log
+from writeout import write_out_to_log
+
+urlhead = 'https://www.sec.gov/'
 
 #ciks = ['0001166559', '0001067983']
 ciks = ['0001166559']
@@ -25,7 +28,7 @@ def init_driver():
 
 def lookup(driver):
     for cik in ciks:
-        website = 'https://www.sec.gov/cgi-bin/browse-edgar?CIK={cik}'.format(cik=cik)
+        website = '{head}cgi-bin/browse-edgar?CIK={cik}'.format(head=urlhead, cik=cik)
         time.sleep(1)
         driver.get(website)
         timeout = 20
@@ -36,17 +39,24 @@ def lookup(driver):
 
             # extract data here
             elements = driver.find_elements_by_class_name('tableFile2')
-            print(elements[0].get_attribute('innerHTML'))
+            payload = elements[0].get_attribute('innerHTML')
+            # write_out_to_log(payload=payload, cik_id=cik)
 
 
-            # rows = driver.find_elements(By.TAG_NAME, "tr")
-            # # for row in rows:
-            # #     col = row.find_elements(By.TAG_NAME, "td")
-            # #     print(col)
-            # tds = rows[0].find_elements(By.TAG_NAME, "td")
-            # print(tds[1].text)
+            thirteen_link = []
+            soup = BeautifulSoup(payload, 'html.parser')
 
-            # writeout data here
+
+            rows = soup.findAll('tr')
+            for tr in rows:
+                cols = tr.findAll('td')
+
+                if len(cols) >= 1 and '13F-HR' in cols[0].text:
+                    link = cols[1].find('a').get('href')
+                    print(link)
+
+
+
         except:
             print('ERROR')
 
@@ -55,7 +65,6 @@ if __name__ == "__main__":
     # init driver
     driver = init_driver()
     lookup(driver)
-    # write_out_to_log(payload=0, cik_id=0)
     # close driver
     time.sleep(1)
     driver.quit()
