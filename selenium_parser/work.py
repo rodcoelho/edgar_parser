@@ -1,22 +1,18 @@
 #!/usr/bin/env python3
 
-#!/usr/bin/env python3
 import time
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
-from bs4 import BeautifulSoup
-from lxml import html
 import requests
+from lxml import html
+
+from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from bs4 import BeautifulSoup
 
 from writeout import write_out_to_log
 
-urlhead = 'https://www.sec.gov'
+ciks = ['0001166559', '0001067983']
 
-#ciks = ['0001166559', '0001067983']
-ciks = ['0001166559']
+urlhead = 'https://www.sec.gov'
 
 thirteen_link = {}
 xml_link = {}
@@ -41,12 +37,10 @@ def lookup(driver):
 
         try:
             WebDriverWait(driver, timeout)
-            # driver.implicitly_wait(25)
 
             # extract data here
             elements = driver.find_elements_by_class_name('tableFile2')
             payload = elements[0].get_attribute('innerHTML')
-            # write_out_to_log(payload=payload, cik_id=cik)
 
             soup = BeautifulSoup(payload, 'html.parser')
 
@@ -74,12 +68,10 @@ def getxmlpages(driver):
 
             try:
                 WebDriverWait(driver, timeout)
-                # driver.implicitly_wait(25)
 
                 # extract data here
                 elements = driver.find_elements_by_class_name('tableFile')
                 payload = elements[0].get_attribute('innerHTML')
-                # write_out_to_log(payload=payload, cik_id=cik)
 
                 soup = BeautifulSoup(payload, 'html.parser')
 
@@ -97,8 +89,12 @@ def getxmlpages(driver):
 
 
 def data_extraction():
-    for key, value in xml_link:
+    for key, value in xml_link.items():
         for datalink in value:
+
+            # payload name for writeout file
+            payload_name = '13F_{cik}_{filling_date}'.format(cik=key, filling_date=datalink[0])
+
             website = '{head}{link}'.format(head=urlhead, link=datalink[1])
             page = requests.get(website)
             tree = html.fromstring(page.content)
@@ -107,23 +103,28 @@ def data_extraction():
                 # data extraction
                 table = tree.xpath("//table")[3]
                 for row in table.xpath(".//tr"):
+
                     # get the text from all the td's from each row
                     row_list = [td.text for td in row.xpath(".//td[text()]")]
-                    print('\t'.join(map(str, row_list)))
+                    row_payload = '\t'.join(map(str, row_list)) + '\n'
 
+                    # write out row
+                    write_out_to_log(payload=row_payload, cik_id=payload_name)
             except:
                 print('ERROR 3')
 
 
 if __name__ == "__main__":
-    # init driver
     driver = init_driver()
-    # gets the 13F links and stores them in thirteen_link list
+    # get 13F links
     lookup(driver)
+    # get xml links
     getxmlpages(driver)
+    # get data and writeout to file
     data_extraction()
-    # close driver
-    time.sleep(5)
+
+    # close drivers
+    time.sleep(1)
     driver.quit()
     driver.quit()
 
